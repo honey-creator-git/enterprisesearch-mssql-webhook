@@ -1,27 +1,40 @@
-name: Periodic Indexing
+name: MSSQL Periodic Checking Updates
 
 on:
   schedule:
     - cron: "*/5 * * * *" # Run every 5 minutes
+  workflow_dispatch: # Allows manual triggering for testing
 
 jobs:
-  periodic-indexing:
+  monitor-mongodb:
     runs-on: ubuntu-latest
+
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }} # Ensures that only one workflow for the same branch is running at a time
+      cancel-in-progress: true # Cancels any currently running job of the same group if a new one is triggered
+
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v3
 
       - name: Set Up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "20"
+          node-version: "20" # Use Node.js 20.x
 
       - name: Install Dependencies
-        run: npm install
+        run: |
+          npm install --verbose  # Adds verbosity to see any issues during dependency installation
 
-      - name: Run Periodic Indexing
+      - name: Run MSSQL Changes Listener
+        run: |
+          node cronRunner.js || { echo 'Error running cronRunner.js'; exit 1; }  # Ensures job fails clearly if there's an error
         env:
-          ELASTICSEARCH_ENDPOINT: ${{ secrets.ELASTICSEARCH_ENDPOINT }}
+          ELASTICSEARCH_URL: ${{ secrets.ELASTICSEARCH_URL }} # MongoDB URI stored as a secret
           AZURE_SEARCH_ENDPOINT: ${{ secrets.AZURE_SEARCH_ENDPOINT }}
           AZURE_SEARCH_API_KEY: ${{ secrets.AZURE_SEARCH_API_KEY }}
-        run: node cronRunner.js
+
+      - name: Clean Up
+        run: |
+          echo "Cleaning up after the job..."
+          # Any clean-up steps after the job completes can be added here.

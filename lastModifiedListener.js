@@ -160,7 +160,7 @@ async function processIndices(indices) {
     }
 }
 
-async function lastModifiedListener() {
+exports.lastModifiedListener = async () => {
     try {
         console.log("Fetching indices with prefix...");
         const indices = await fetchIndicesWithPrefix("datasource_mssql_connection_");
@@ -174,5 +174,3 @@ async function lastModifiedListener() {
         console.error("Error during periodic indexing:", error.message);
     }
 }
-
-module.exports = lastModifiedListener;

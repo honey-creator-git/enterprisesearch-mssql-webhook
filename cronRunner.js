@@ -1,5 +1,5 @@
 const cron = require("node-cron");
-const { lastModifiedListener } = require("./lastModifiedListener"); // Use destructuring if using named export
+const lastModifiedListener = require("./lastModifiedListener.js").lastModifiedListener; // Use destructuring if using named export
 
 // Schedule the cron job to run every 5 minutes
 cron.schedule("*/5 * * * *", async () => {

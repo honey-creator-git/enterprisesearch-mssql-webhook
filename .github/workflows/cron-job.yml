@@ -6,7 +6,7 @@ on:
   workflow_dispatch: # Allows manual triggering for testing
 
 jobs:
-  monitor-mongodb:
+  monitor-mssql:
     runs-on: ubuntu-latest
 
     concurrency:

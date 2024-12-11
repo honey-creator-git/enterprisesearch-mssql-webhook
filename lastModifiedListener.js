@@ -53,7 +53,7 @@ const updateTimeInElasticsearch = async (indexName, docId, updatedAt) => {
     }
 };
 
-async function fetchUpdatedRows(config) {
+async function fetchUpdatedRowsFromChangeLog(config) {
     const dbConfig = {
         user: config.source.user,
         password: config.source.password,
@@ -72,11 +72,12 @@ async function fetchUpdatedRows(config) {
         console.log("Current updatedAt in Elasticsearch:", config.source.updatedAt);
 
         const query = `
-        SELECT Id, ${config.source.field_name}, LastModified 
-        FROM ${config.source.table_name} 
-        WHERE LastModified > @LastIndexedTime
-        ORDER BY LastModified ASC
-      `;
+            SELECT RowID, ChangedField, OldValue, NewValue, ChangeTime 
+            FROM ${config.source.table_name}_ChangeLog 
+            WHERE ChangeTime > @LastIndexedTime
+            ORDER BY ChangeTime ASC
+        `;
+
         const lastIndexedTime = new Date(config.source.updatedAt || 0);
 
         const result = await connection.request()
@@ -84,11 +85,11 @@ async function fetchUpdatedRows(config) {
             .query(query);
 
         if (result.recordset.length > 0) {
-            const latestUpdatedTime = result.recordset[result.recordset.length - 1].LastModified;
+            const latestChangeTime = result.recordset[result.recordset.length - 1].ChangeTime;
 
-            console.log("Updating Elasticsearch with:", latestUpdatedTime.toISOString());
+            console.log("Updating Elasticsearch with:", latestChangeTime.toISOString());
 
-            await updateTimeInElasticsearch(`datasource_mssql_connection_${config.source.coid.toLowerCase()}`, config.id, latestUpdatedTime.toISOString());
+            await updateTimeInElasticsearch(`datasource_mssql_connection_${config.source.coid.toLowerCase()}`, config.id, latestChangeTime.toISOString());
         }
 
         return result.recordset;
@@ -100,17 +101,17 @@ async function fetchUpdatedRows(config) {
     }
 }
 
-async function processAndIndexData(rows, fieldName, fieldType, indexName) {
+async function processAndIndexData(rows, fieldType, indexName) {
     const documents = [];
 
     for (const row of rows) {
         try {
-            const content = await processFieldContent(row[fieldName], fieldType);
+            const content = await processFieldContent(row.NewValue, fieldType);
 
             if (content) {
                 documents.push({
                     "@search.action": "mergeOrUpload",
-                    id: row.Id.toString(),
+                    id: row.RowID.toString(),
                     content, // Processed content
                 });
             }
@@ -155,9 +156,9 @@ async function processIndices(indices) {
 
             for (const config of indexDetails) {
                 try {
-                    const updatedRows = await fetchUpdatedRows(config);
+                    const updatedRows = await fetchUpdatedRowsFromChangeLog(config);
                     if (updatedRows.length > 0) {
-                        await processAndIndexData(updatedRows, config.source.field_name, config.source.field_type, `tenant_${config.source.coid.toLowerCase()}`);
+                        await processAndIndexData(updatedRows, config.source.field_type, `tenant_${config.source.coid.toLowerCase()}`);
                     }
                 } catch (error) {
                     console.error(`Error processing table: ${config.source.table_name}, field: ${config.source.field_name}`, error.message);

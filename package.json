@@ -1,0 +1,19 @@
+{
+  "name": "enterprisearch-webhook-mssql",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@elastic/elasticsearch": "^8.16.2",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "mssql": "^11.0.1",
+    "node-cron": "^3.0.3",
+    "p-limit": "^6.1.0"
+  }
+}

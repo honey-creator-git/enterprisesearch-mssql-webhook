@@ -53,7 +53,7 @@ const updateTimeInElasticsearch = async (indexName, docId, updatedAt) => {
     }
 };
 
-async function fetchUpdatedRowsFromChangeLog(config) {
+async function fetchUpdatedRows(config) {
     const dbConfig = {
         user: config.source.user,
         password: config.source.password,
@@ -72,8 +72,8 @@ async function fetchUpdatedRowsFromChangeLog(config) {
         console.log("Current updatedAt in Elasticsearch:", config.source.updatedAt);
 
         const query = `
-            SELECT RowID, ChangedField, OldValue, NewValue, ChangeTime 
-            FROM ${config.source.table_name}_ChangeLog 
+            SELECT RowID, ChangeTime, NewValue AS ${config.source.field_name}, ActionType
+            FROM ${config.source.table_name}_ChangeLog
             WHERE ChangeTime > @LastIndexedTime
             ORDER BY ChangeTime ASC
         `;
@@ -101,22 +101,22 @@ async function fetchUpdatedRowsFromChangeLog(config) {
     }
 }
 
-async function processAndIndexData(rows, fieldType, indexName) {
+async function processAndIndexData(rows, fieldName, fieldType, indexName) {
     const documents = [];
 
     for (const row of rows) {
         try {
-            const content = await processFieldContent(row.NewValue, fieldType);
+            const content = await processFieldContent(row[fieldName], fieldType);
 
             if (content) {
                 documents.push({
-                    "@search.action": "mergeOrUpload",
+                    "@search.action": row.ActionType === "INSERT" ? "upload" : "mergeOrUpload",
                     id: row.RowID.toString(),
                     content, // Processed content
                 });
             }
         } catch (error) {
-            console.error(`Error processing content for row ID ${row.Id}:`, error.message);
+            console.error(`Error processing content for row ID ${row.RowID}:`, error.message);
         }
     }
 
@@ -156,9 +156,9 @@ async function processIndices(indices) {
 
             for (const config of indexDetails) {
                 try {
-                    const updatedRows = await fetchUpdatedRowsFromChangeLog(config);
+                    const updatedRows = await fetchUpdatedRows(config);
                     if (updatedRows.length > 0) {
-                        await processAndIndexData(updatedRows, config.source.field_type, `tenant_${config.source.coid.toLowerCase()}`);
+                        await processAndIndexData(updatedRows, config.source.field_name, config.source.field_type, `tenant_${config.source.coid.toLowerCase()}`);
                     }
                 } catch (error) {
                     console.error(`Error processing table: ${config.source.table_name}, field: ${config.source.field_name}`, error.message);
@@ -183,4 +183,4 @@ exports.lastModifiedListener = async () => {
     } catch (error) {
         console.error("Error during periodic indexing:", error.message);
     }
-}
+};

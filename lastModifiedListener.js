@@ -25,7 +25,10 @@ async function fetchIndexDetails(indexName) {
             },
         });
 
-        return result.hits.hits.map((hit) => hit._source);
+        return result.hits.hits.map((hit) => ({
+            source: hit._source,
+            id: hit._id,
+        }));
     } catch (error) {
         console.error(`Error fetching details from index ${indexName}:`, error.message);
         throw new Error("Failed to fetch index details from Elasticsearch");
@@ -52,10 +55,10 @@ const updateTimeInElasticsearch = async (indexName, docId, updatedAt) => {
 
 async function fetchUpdatedRows(config) {
     const dbConfig = {
-        user: config.user,
-        password: config.password,
-        server: config.host,
-        database: config.database,
+        user: config.source.user,
+        password: config.source.password,
+        server: config.source.host,
+        database: config.source.database,
         options: {
             encrypt: true,
             trustServerCertificate: false,
@@ -66,12 +69,12 @@ async function fetchUpdatedRows(config) {
 
     try {
         const query = `
-        SELECT Id, ${config.field_name}, LastModified 
-        FROM ${config.table_name} 
+        SELECT Id, ${config.source.field_name}, LastModified 
+        FROM ${config.source.table_name} 
         WHERE LastModified > @LastIndexedTime
         ORDER BY LastModified ASC
       `;
-        const lastIndexedTime = new Date(config.updatedAt || 0);
+        const lastIndexedTime = new Date(config.source.updatedAt || 0);
 
         const result = await connection.request()
             .input("LastIndexedTime", sql.DateTime, lastIndexedTime)
@@ -79,7 +82,7 @@ async function fetchUpdatedRows(config) {
 
         if (result.recordset.length > 0) {
             const latestUpdatedTime = result.recordset[result.recordset.length - 1].LastModified;
-            await updateTimeInElasticsearch(`datasource_mssql_connection_${config.coid.toLowerCase()}`, config._id, latestUpdatedTime);
+            await updateTimeInElasticsearch(`datasource_mssql_connection_${config.source.coid.toLowerCase()}`, config.id, latestUpdatedTime);
         }
 
         return result.recordset;

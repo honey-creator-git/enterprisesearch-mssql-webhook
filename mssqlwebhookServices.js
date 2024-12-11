@@ -1,3 +1,8 @@
+const mammoth = require("mammoth");
+const pdfParse = require("pdf-parse");
+const cheerio = require("cheerio");
+const XLSX = require("xlsx");
+
 async function extractTextFromCsv(content) {
     return content; // Process CSV content if needed
 }

@@ -11,9 +11,14 @@
   "dependencies": {
     "@elastic/elasticsearch": "^8.16.2",
     "axios": "^1.7.9",
+    "cheerio": "^1.0.0",
     "dotenv": "^16.4.7",
+    "mammoth": "^1.8.0",
     "mssql": "^11.0.1",
     "node-cron": "^3.0.3",
-    "p-limit": "^6.1.0"
+    "p-limit": "^6.1.0",
+    "pdf-parse": "^1.1.1",
+    "xlsx": "^0.18.5",
+    "xml2js": "^0.6.2"
   }
 }

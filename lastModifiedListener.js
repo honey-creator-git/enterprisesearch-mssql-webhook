@@ -151,10 +151,10 @@ async function processIndices(indices) {
                 try {
                     const updatedRows = await fetchUpdatedRows(config);
                     if (updatedRows.length > 0) {
-                        await processAndIndexData(updatedRows, config.field_name, config.field_type, `tenant_${config.coid.toLowerCase()}`);
+                        await processAndIndexData(updatedRows, config.source.field_name, config.source.field_type, `tenant_${config.source.coid.toLowerCase()}`);
                     }
                 } catch (error) {
-                    console.error(`Error processing table: ${config.table_name}, field: ${config.field_name}`, error.message);
+                    console.error(`Error processing table: ${config.source.table_name}, field: ${config.source.field_name}`, error.message);
                 }
             }
         } catch (error) {

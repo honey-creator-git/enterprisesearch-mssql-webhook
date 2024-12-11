@@ -101,7 +101,7 @@ async function fetchUpdatedRows(config) {
     }
 }
 
-async function processAndIndexData(rows, fieldName, fieldType, indexName) {
+async function processAndIndexData(rows, fieldName, fieldType, category, indexName) {
     const documents = [];
 
     for (const row of rows) {
@@ -110,10 +110,17 @@ async function processAndIndexData(rows, fieldName, fieldType, indexName) {
 
             if (content) {
                 console.log("Row Action Type => ", row.ActionType);
+                console.log("Row's RowID => ", row.RowID);
+
+                // Prepare the document structure
                 documents.push({
                     "@search.action": row.ActionType === "INSERT" ? "upload" : "mergeOrUpload",
                     id: row.RowID.toString(),
+                    title: `Default Title for Row ${row.RowID}`, // Default or provided
                     content, // Processed content
+                    description: `Default Description for Row ${row.RowID}`, // Default or provided
+                    image: null, // Optional
+                    category: category, // Default or provided
                 });
             }
         } catch (error) {
@@ -159,7 +166,7 @@ async function processIndices(indices) {
                 try {
                     const updatedRows = await fetchUpdatedRows(config);
                     if (updatedRows.length > 0) {
-                        await processAndIndexData(updatedRows, config.source.field_name, config.source.field_type, `tenant_${config.source.coid.toLowerCase()}`);
+                        await processAndIndexData(updatedRows, config.source.field_name, config.source.field_type, config.source.category, `tenant_${config.source.coid.toLowerCase()}`);
                     }
                 } catch (error) {
                     console.error(`Error processing table: ${config.source.table_name}, field: ${config.source.field_name}`, error.message);

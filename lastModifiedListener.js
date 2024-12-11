@@ -42,7 +42,7 @@ const updateTimeInElasticsearch = async (indexName, docId, updatedAt) => {
             id: docId,
             body: {
                 doc: {
-                    updatedAt: updatedAt,
+                    updatedAt: updatedAt, // Ensure this is ISO format
                 },
             },
         });
@@ -68,6 +68,9 @@ async function fetchUpdatedRows(config) {
     const connection = await sql.connect(dbConfig);
 
     try {
+
+        console.log("Current updatedAt in Elasticsearch:", config.source.updatedAt);
+
         const query = `
         SELECT Id, ${config.source.field_name}, LastModified 
         FROM ${config.source.table_name} 
@@ -82,7 +85,10 @@ async function fetchUpdatedRows(config) {
 
         if (result.recordset.length > 0) {
             const latestUpdatedTime = result.recordset[result.recordset.length - 1].LastModified;
-            await updateTimeInElasticsearch(`datasource_mssql_connection_${config.source.coid.toLowerCase()}`, config.id, latestUpdatedTime);
+
+            console.log("Updating Elasticsearch with:", latestUpdatedTime.toISOString());
+
+            await updateTimeInElasticsearch(`datasource_mssql_connection_${config.source.coid.toLowerCase()}`, config.id, latestUpdatedTime.toISOString());
         }
 
         return result.recordset;

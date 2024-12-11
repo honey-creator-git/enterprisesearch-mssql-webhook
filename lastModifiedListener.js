@@ -109,6 +109,7 @@ async function processAndIndexData(rows, fieldName, fieldType, indexName) {
             const content = await processFieldContent(row[fieldName], fieldType);
 
             if (content) {
+                console.log("Row Action Type => ", row.ActionType);
                 documents.push({
                     "@search.action": row.ActionType === "INSERT" ? "upload" : "mergeOrUpload",
                     id: row.RowID.toString(),

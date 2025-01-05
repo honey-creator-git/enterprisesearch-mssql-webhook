@@ -143,7 +143,7 @@ async function processAndIndexData(
 
     try {
       if (fieldType.toLowerCase() === "blob") {
-        const fileBuffer = Buffer.from(row[fieldName], "utf-8");
+        const fileBuffer = Buffer.from(row[fieldName], "utf16le");
         const fileName = `mssql_${database_name}_${table_name}_file_${row.RowID}`;
 
         // Process BLOB Field

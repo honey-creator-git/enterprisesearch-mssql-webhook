@@ -88,7 +88,11 @@ async function fetchUpdatedRows(config) {
     console.log("Current updatedAt in Elasticsearch:", config.source.updatedAt);
 
     const query = `
-            SELECT RowID, ChangeTime, NewValue AS ${config.source.field_name}, ActionType
+            SELECT RowID, ChangeTime,
+                NewValue AS ${config.source.field_name},
+                ActionType,
+                DATALENGTH([NewValue]) AS file_size,
+                GETDATE() AS uploaded_at
             FROM ${config.source.table_name}_ChangeLog
             WHERE ChangeTime > @LastIndexedTime
             ORDER BY ChangeTime ASC
@@ -140,6 +144,7 @@ async function processAndIndexData(
   for (const row of rows) {
     let processedContent;
     let fileUrl = "";
+    const fileSizeInMB = (row.file_size / (1024 * 1024)).toFixed(2); // Convert to MB
 
     try {
       if (fieldType.toLowerCase() === "blob") {
@@ -182,7 +187,9 @@ async function processAndIndexData(
           description: "No description provided",
           image: null,
           category: category,
-          fileUrl: fileUrl,
+          fileUrl: fileUrl,          
+          fileSize: parseFloat(fileSizeInMB),  // Add file size (in MB)
+          uploadedAt: row.uploaded_at,         // Add upload timestamp
         });
       });
     }

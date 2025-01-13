@@ -5,6 +5,7 @@ const { uploadFileToBlob } = require("./blobStorage");
 const processFieldContent =
   require("./mssqlwebhookServices").processFieldContent;
 const processBlobField = require("./mssqlwebhookServices").processBlobField;
+const detectMimeType = require("./mssqlwebhookServices").detectMimeType;
 
 function splitLargeText(content, maxChunkSize = 30000) {
   const chunks = [];
@@ -89,6 +90,7 @@ async function fetchUpdatedRows(config) {
 
     const query = `
             SELECT RowID, ChangeTime,
+                Title AS ${config.source.title_field},
                 NewValue AS ${config.source.field_name},
                 ActionType,
                 DATALENGTH([NewValue]) AS file_size,
@@ -135,7 +137,7 @@ async function processAndIndexData(
   database_name,
   table_name,
   fieldName,
-  fieldType,
+  titleField,
   category,
   indexName
 ) {
@@ -145,24 +147,36 @@ async function processAndIndexData(
     let processedContent;
     let fileUrl = "";
     const fileSizeInMB = (row.file_size / (1024 * 1024)).toFixed(2); // Convert to MB
+    const fileBuffer = Buffer.from(row[fieldName], "utf16le");
+    const fileName = row[titleField];
 
     try {
-      if (fieldType.toLowerCase() === "blob") {
-        const fileBuffer = Buffer.from(row[fieldName], "utf16le");
-        const fileName = `mssql_${database_name}_${table_name}_file_${row.RowID}`;
+      // Detect MIME type dynamically
+      const mimeType = await detectMimeType(fileBuffer);
 
+      if (
+        mimeType.startsWith("application/") ||
+        mimeType === "text/html" ||
+        mimeType === "text/csv" ||
+        mimeType === "text/xml" ||
+        mimeType === "text/plain"
+      ) {
+        console.log(`Detected MIME type: ${mimeType}`);
         // Process BLOB Field
-        const { extractedText, mimeType } = await processBlobField(fileBuffer);
+        const { extractedText } = await processBlobField(fileBuffer, mimeType);
 
         // Upload to Azure Blob Storage
         fileUrl = await uploadFileToBlob(fileBuffer, fileName, mimeType);
+
         console.log("File URL => ", fileUrl);
 
         // Assign extracted text
         processedContent = extractedText;
+
         console.log("Extracted text from buffer => ", processedContent);
       } else {
-        processedContent = await processFieldContent(row[fieldName], fieldType);
+        console.log("Unsupported MIME type:", mimeType);
+        continue;
       }
     } catch (error) {
       console.error(
@@ -183,13 +197,13 @@ async function processAndIndexData(
             row.ActionType === "INSERT" ? "upload" : "mergeOrUpload",
           id: `mssql_${database_name}_${table_name}_${row.RowID}_${index}`,
           content: chunk,
-          title: `MSSQL Row ID ${row.RowID}`,
+          title: fileName,
           description: "No description provided",
           image: null,
           category: category,
-          fileUrl: fileUrl,          
-          fileSize: parseFloat(fileSizeInMB),  // Add file size (in MB)
-          uploadedAt: row.uploaded_at,         // Add upload timestamp
+          fileUrl: fileUrl,
+          fileSize: parseFloat(fileSizeInMB), // Add file size (in MB)
+          uploadedAt: row.uploaded_at, // Add upload timestamp
         });
       });
     }
@@ -238,7 +252,7 @@ async function processIndices(indices) {
               config.source.database,
               config.source.table_name,
               config.source.field_name,
-              config.source.field_type,
+              config.source.title_field,
               config.source.category,
               `tenant_${config.source.coid.toLowerCase()}`
             );

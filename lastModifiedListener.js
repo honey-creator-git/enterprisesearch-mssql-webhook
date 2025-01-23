@@ -100,7 +100,9 @@ async function fetchUpdatedRows(config) {
             ORDER BY ChangeTime ASC
         `;
 
-    const lastIndexedTime = new Date(config.source.updatedAt || 0);
+    const lastIndexedTime = new Date(
+      config.source.updatedAt || 0
+    ).toISOString();
 
     const result = await connection
       .request()
@@ -108,18 +110,15 @@ async function fetchUpdatedRows(config) {
       .query(query);
 
     if (result.recordset.length > 0) {
-      const latestChangeTime =
-        result.recordset[result.recordset.length - 1].ChangeTime;
-
-      console.log(
-        "Updating Elasticsearch with:",
-        latestChangeTime.toISOString()
-      );
+      const latestChangeTime = new Date(
+        result.recordset[result.recordset.length - 1].ChangeTime
+      ).toISOString();
+      console.log("Updating Elasticsearch with:", latestChangeTime);
 
       await updateTimeInElasticsearch(
         `datasource_mssql_connection_${config.source.coid.toLowerCase()}`,
         config.id,
-        latestChangeTime.toISOString()
+        latestChangeTime
       );
     }
 
